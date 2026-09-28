@@ -42,6 +42,8 @@ public class PlayerMovement : MonoBehaviour
     // Read by PlayerAnimation to pick the crouch animations
     public bool IsCrouching { get; private set; }
 
+    public bool MovementLocked { get; set; }
+
     private CharacterController controller;
     private Vector3 velocity;
     private float pitch;
@@ -90,7 +92,7 @@ public class PlayerMovement : MonoBehaviour
         float x = 0f;
         float z = 0f;
 
-        if (Keyboard.current != null)
+        if (!MovementLocked && Keyboard.current != null)
         {
             if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) z += 1f;
             if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) z -= 1f;
@@ -105,7 +107,11 @@ public class PlayerMovement : MonoBehaviour
         Vector3 move = (transform.right * x + transform.forward * z).normalized * speed;
 
         // Jump (not while crouched)
-        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame && controller.isGrounded && !IsCrouching)
+        if (!MovementLocked &&
+            Keyboard.current != null &&
+            Keyboard.current.spaceKey.wasPressedThisFrame &&
+            controller.isGrounded &&
+            !IsCrouching)
         {
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             AddBob(jumpBob);
@@ -144,7 +150,9 @@ public class PlayerMovement : MonoBehaviour
     }
 
     void Crouch()
-    {
+    {   
+        if (MovementLocked) return;
+
         // Hold C or Left Ctrl to crouch
         bool wantsCrouch = Keyboard.current != null &&
             (Keyboard.current.cKey.isPressed || Keyboard.current.leftCtrlKey.isPressed);
@@ -196,12 +204,19 @@ public class PlayerMovement : MonoBehaviour
 
     void Look()
     {
+        if (MovementLocked)
+            return;
+
         // Escape frees the cursor, clicking in the game view locks it again
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        if (!MovementLocked &&
+            Keyboard.current != null &&
+            Keyboard.current.escapeKey.wasPressedThisFrame)
         {
             LockCursor(false);
         }
-        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        if (!MovementLocked &&
+            Mouse.current != null &&
+            Mouse.current.leftButton.wasPressedThisFrame)
         {
             LockCursor(true);
         }
