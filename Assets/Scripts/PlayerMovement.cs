@@ -204,9 +204,6 @@ public class PlayerMovement : MonoBehaviour
 
     void Look()
     {
-        if (MovementLocked)
-            return;
-
         // Escape frees the cursor, clicking in the game view locks it again
         if (!MovementLocked &&
             Keyboard.current != null &&
