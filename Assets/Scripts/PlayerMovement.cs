@@ -44,6 +44,9 @@ public class PlayerMovement : MonoBehaviour
 
     public bool MovementLocked { get; set; }
 
+    // Set by PuzzleCameraFocus while the camera is detached from the player's head
+    public bool LookLocked { get; set; }
+
     private CharacterController controller;
     private Vector3 velocity;
     private float pitch;
@@ -218,7 +221,7 @@ public class PlayerMovement : MonoBehaviour
             LockCursor(true);
         }
 
-        if (Mouse.current == null || Cursor.lockState != CursorLockMode.Locked) return;
+        if (LookLocked || Mouse.current == null || Cursor.lockState != CursorLockMode.Locked) return;
 
         // Mouse delta is already per-frame, so no Time.deltaTime here
         Vector2 delta = Mouse.current.delta.ReadValue() * mouseSensitivity;

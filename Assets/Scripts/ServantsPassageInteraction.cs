@@ -15,6 +15,7 @@ public class ServantsPassageInteraction : MonoBehaviour
     private Camera cam;
     private bool lookingAtPassage;
     private bool lookingAround;
+    private PuzzleCameraFocus cameraFocus;
 
     private string statusMessage = "";
     private float statusUntil;
@@ -22,6 +23,13 @@ public class ServantsPassageInteraction : MonoBehaviour
     void Start()
     {
         cam = Camera.main;
+
+        cameraFocus = GetComponent<PuzzleCameraFocus>();
+        if (cameraFocus == null)
+        {
+            cameraFocus = gameObject.AddComponent<PuzzleCameraFocus>();
+            cameraFocus.front = PuzzleCameraFocus.FrontAxis.LocalNegativeZ;
+        }
 
         if (playerMovement == null)
             playerMovement = FindAnyObjectByType<PlayerMovement>();
@@ -70,6 +78,12 @@ public class ServantsPassageInteraction : MonoBehaviour
         if (Keyboard.current == null)
             return;
 
+        if (puzzleManager != null && puzzleManager.Solved)
+        {
+            lookingAtPassage = false;
+            return;
+        }
+
         if (cam == null)
             cam = Camera.main;
 
@@ -84,6 +98,9 @@ public class ServantsPassageInteraction : MonoBehaviour
 
     void TryEnterInteraction()
     {
+        if (IsInteracting || (puzzleManager != null && puzzleManager.Solved))
+            return;
+
         if (puzzleManager != null &&
             !puzzleManager.CanAttempt(out string reason))
         {
@@ -100,6 +117,9 @@ public class ServantsPassageInteraction : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        if (cameraFocus != null)
+            cameraFocus.Focus();
     }
 
     public void ExitInteraction()
@@ -109,6 +129,9 @@ public class ServantsPassageInteraction : MonoBehaviour
 
         IsInteracting = false;
         lookingAround = false;
+
+        if (cameraFocus != null)
+            cameraFocus.Unfocus();
 
         if (puzzleManager != null && !puzzleManager.Solved)
             puzzleManager.ResetAttempt();
@@ -122,24 +145,7 @@ public class ServantsPassageInteraction : MonoBehaviour
 
     void HandleLookAround()
     {
-        Mouse mouse = Mouse.current;
-
-        if (mouse == null)
-            return;
-
-        if (mouse.rightButton.wasPressedThisFrame)
-        {
-            lookingAround = true;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-
-        if (mouse.rightButton.wasReleasedThisFrame)
-        {
-            lookingAround = false;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        LookAroundInput.Update(ref lookingAround);
     }
 
     void HandleBellClick()
@@ -243,7 +249,7 @@ public class ServantsPassageInteraction : MonoBehaviour
                     Screen.width,
                     60
                 ),
-                "Click bells     Enter to submit     Hold Right Mouse to look     E to exit"
+                "Click bells     Enter to submit     " + LookAroundInput.PromptText + "     E to exit"
                 + hint,
                 style
             );
@@ -251,7 +257,7 @@ public class ServantsPassageInteraction : MonoBehaviour
         else if (lookingAtPassage &&
                  (puzzleManager == null || !puzzleManager.Solved))
         {
-            GUI.Label(
+            HoverPromptGUI.Draw(
                 new Rect(
                     0,
                     Screen.height / 2f + 30,

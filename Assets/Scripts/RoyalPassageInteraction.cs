@@ -15,6 +15,7 @@ public class RoyalPassageInteraction : MonoBehaviour
     private Camera cam;
     private bool lookingAtPassage;
     private bool lookingAround;
+    private PuzzleCameraFocus cameraFocus;
 
     private string statusMessage = "";
     private float statusUntil;
@@ -22,6 +23,13 @@ public class RoyalPassageInteraction : MonoBehaviour
     void Start()
     {
         cam = Camera.main;
+
+        cameraFocus = GetComponent<PuzzleCameraFocus>();
+        if (cameraFocus == null)
+        {
+            cameraFocus = gameObject.AddComponent<PuzzleCameraFocus>();
+            cameraFocus.front = PuzzleCameraFocus.FrontAxis.LocalNegativeZ;
+        }
 
         if (playerMovement == null)
             playerMovement = FindAnyObjectByType<PlayerMovement>();
@@ -73,6 +81,12 @@ public class RoyalPassageInteraction : MonoBehaviour
         if (Keyboard.current == null)
             return;
 
+        if (puzzleManager != null && puzzleManager.Solved)
+        {
+            lookingAtPassage = false;
+            return;
+        }
+
         if (cam == null)
             cam = Camera.main;
 
@@ -87,6 +101,9 @@ public class RoyalPassageInteraction : MonoBehaviour
 
     void TryEnterInteraction()
     {
+        if (IsInteracting || (puzzleManager != null && puzzleManager.Solved))
+            return;
+
         if (puzzleManager != null &&
             !puzzleManager.CanAttempt(out string reason))
         {
@@ -103,6 +120,9 @@ public class RoyalPassageInteraction : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        if (cameraFocus != null)
+            cameraFocus.Focus();
     }
 
     public void ExitInteraction()
@@ -113,6 +133,9 @@ public class RoyalPassageInteraction : MonoBehaviour
         IsInteracting = false;
         lookingAround = false;
 
+        if (cameraFocus != null)
+            cameraFocus.Unfocus();
+
         if (playerMovement != null)
             playerMovement.MovementLocked = false;
 
@@ -122,24 +145,7 @@ public class RoyalPassageInteraction : MonoBehaviour
 
     void HandleLookAround()
     {
-        Mouse mouse = Mouse.current;
-
-        if (mouse == null)
-            return;
-
-        if (mouse.rightButton.wasPressedThisFrame)
-        {
-            lookingAround = true;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-
-        if (mouse.rightButton.wasReleasedThisFrame)
-        {
-            lookingAround = false;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        LookAroundInput.Update(ref lookingAround);
     }
 
     void HandleLockClick()
@@ -243,7 +249,7 @@ public class RoyalPassageInteraction : MonoBehaviour
                     Screen.width,
                     60
                 ),
-                "Click locks to change color     Enter to submit     Hold Right Mouse to look     E to exit"
+                "Click locks to change color     Enter to submit     " + LookAroundInput.PromptText + "     E to exit"
                 + hint,
                 style
             );
@@ -251,7 +257,7 @@ public class RoyalPassageInteraction : MonoBehaviour
         else if (lookingAtPassage &&
                  (puzzleManager == null || !puzzleManager.Solved))
         {
-            GUI.Label(
+            HoverPromptGUI.Draw(
                 new Rect(
                     0,
                     Screen.height / 2f + 30,

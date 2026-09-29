@@ -26,10 +26,26 @@ public class TapestryInteraction : MonoBehaviour
     private Collider[] stationColliders;
     private bool[] stationColliderStates;
     private bool lookingAround;
+    private PuzzleCameraFocus cameraFocus;
+    private TapestryRewardChoice rewardChoice;
+
+    // Finished once the crests are solved and the reward has been taken.
+    public bool IsFinished => rewardChoice != null && rewardChoice.HasChosenReward;
 
     void Start()
     {
         cam = Camera.main;
+
+        cameraFocus = GetComponent<PuzzleCameraFocus>();
+        if (cameraFocus == null)
+        {
+            cameraFocus = gameObject.AddComponent<PuzzleCameraFocus>();
+            cameraFocus.front = PuzzleCameraFocus.FrontAxis.LocalPositiveX;
+        }
+
+        rewardChoice = GetComponentInChildren<TapestryRewardChoice>(true);
+        if (rewardChoice == null)
+            rewardChoice = FindAnyObjectByType<TapestryRewardChoice>(FindObjectsInactive.Include);
 
         if (playerMovement == null)
             playerMovement = FindAnyObjectByType<PlayerMovement>();
@@ -61,6 +77,12 @@ public class TapestryInteraction : MonoBehaviour
 
         if (Keyboard.current == null)
             return;
+
+        if (IsFinished)
+        {
+            lookingAtTapestry = false;
+            return;
+        }
 
         if (cam == null)
             cam = Camera.main;
@@ -129,31 +151,14 @@ public class TapestryInteraction : MonoBehaviour
 
     void HandleLookAround()
     {
-        Mouse mouse = Mouse.current;
-
-        if (mouse == null)
-            return;
-
-        if (mouse.rightButton.wasPressedThisFrame)
-        {
-            lookingAround = true;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-
-        if (mouse.rightButton.wasReleasedThisFrame)
-        {
-            lookingAround = false;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        LookAroundInput.Update(ref lookingAround);
     }
 
     public void EnterInteractionMode()
     {
         lookingAround = false;
 
-        if (IsInteracting)
+        if (IsInteracting || IsFinished)
             return;
 
         IsInteracting = true;
@@ -175,6 +180,9 @@ public class TapestryInteraction : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
+        if (cameraFocus != null)
+            cameraFocus.Focus();
+
         if (puzzleManager != null)
             puzzleManager.BeginInteraction();
     }
@@ -195,6 +203,9 @@ public class TapestryInteraction : MonoBehaviour
             puzzleManager.EndInteraction();
 
         RestoreStationColliders();
+
+        if (cameraFocus != null)
+            cameraFocus.Unfocus();
 
         if (playerMovement != null)
             playerMovement.MovementLocked = false;
@@ -273,13 +284,13 @@ public class TapestryInteraction : MonoBehaviour
         {
             GUI.Label(
                 new Rect(0, Screen.height - 60, Screen.width, 30),
-                "Left click crests     Hold Right Mouse to look     E to exit",
+                "Left click crests     " + LookAroundInput.PromptText + "     E to exit",
                 style
             );
         }
         else if (lookingAtTapestry)
         {
-            GUI.Label(
+            HoverPromptGUI.Draw(
                 new Rect(0, Screen.height / 2f + 30, Screen.width, 30),
                 "Press E to inspect tapestry",
                 style

@@ -19,6 +19,11 @@ public class EscapeTimerController : MonoBehaviour
     [SerializeField] private GameObject sandStream;
     [SerializeField] private TMP_Text timerPausedText;
 
+    [Tooltip("Optional. If empty, a label is created above the hourglass at runtime.")]
+    [SerializeField] private TMP_Text timeRemainingText;
+    [SerializeField] private Vector2 timeRemainingTextPosition = new Vector2(0f, 104f);
+    [SerializeField, Min(1f)] private float timeRemainingFontSize = 22f;
+
     [Header("Final 30 Seconds")]
     [SerializeField] private GameObject dangerOverlay;
     [SerializeField] private Image[] dangerEdgeImages;
@@ -157,8 +162,52 @@ public class EscapeTimerController : MonoBehaviour
         if (dangerOverlay != null)
             dangerOverlay.SetActive(false);
 
+        EnsureTimeRemainingText();
         UpdateHourglass(1f);
+        UpdateTimeRemainingText();
         SetDangerProgress(0f);
+    }
+
+    void EnsureTimeRemainingText()
+    {
+        if (timeRemainingText != null || timerHUD == null)
+            return;
+
+        GameObject go = new GameObject("TimeRemainingText", typeof(RectTransform));
+        go.transform.SetParent(timerHUD.transform, false);
+
+        RectTransform rect = go.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = timeRemainingTextPosition;
+        rect.sizeDelta = new Vector2(160f, 30f);
+
+        TextMeshProUGUI text = go.AddComponent<TextMeshProUGUI>();
+        text.alignment = TextAlignmentOptions.Center;
+        text.fontSize = timeRemainingFontSize;
+        text.fontStyle = FontStyles.Bold;
+        text.raycastTarget = false;
+
+        // Match the existing HUD text styling.
+        if (timerPausedText != null)
+        {
+            text.font = timerPausedText.font;
+            text.color = timerPausedText.color;
+        }
+
+        timeRemainingText = text;
+    }
+
+    void UpdateTimeRemainingText()
+    {
+        if (timeRemainingText == null)
+            return;
+
+        int totalSeconds = Mathf.CeilToInt(remainingTime);
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        timeRemainingText.text = $"{minutes}:{seconds:00}";
     }
 
     void UpdateVisuals()
@@ -168,6 +217,7 @@ public class EscapeTimerController : MonoBehaviour
             : 0f;
 
         UpdateHourglass(normalizedTime);
+        UpdateTimeRemainingText();
 
         float dangerProgress = remainingTime <= dangerDuration
             ? 1f - Mathf.Clamp01(remainingTime / dangerDuration)

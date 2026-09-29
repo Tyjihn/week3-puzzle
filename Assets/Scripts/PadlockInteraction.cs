@@ -174,7 +174,7 @@ public class PadlockInteraction : MonoBehaviour
         }
         else if (lookingAtLock && !busy)
         {
-            GUI.Label(new Rect(0, Screen.height / 2f + 30, Screen.width, 30), "Press E to inspect padlock", style);
+            HoverPromptGUI.Draw(new Rect(0, Screen.height / 2f + 30, Screen.width, 30), "Press E to inspect padlock", style);
         }
     }
 }

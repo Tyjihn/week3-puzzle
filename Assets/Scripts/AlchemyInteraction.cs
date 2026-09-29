@@ -19,6 +19,7 @@ public class AlchemyInteraction : MonoBehaviour
     private Camera cam;
     private bool lookingAtStation;
     private bool lookingAround;
+    private PuzzleCameraFocus cameraFocus;
 
     private float successMessageUntil;
     private float failureMessageUntil;
@@ -26,6 +27,13 @@ public class AlchemyInteraction : MonoBehaviour
     void Start()
     {
         cam = Camera.main;
+
+        cameraFocus = GetComponent<PuzzleCameraFocus>();
+        if (cameraFocus == null)
+        {
+            cameraFocus = gameObject.AddComponent<PuzzleCameraFocus>();
+            cameraFocus.front = PuzzleCameraFocus.FrontAxis.LocalPositiveX;
+        }
 
         if (playerMovement == null)
             playerMovement = FindAnyObjectByType<PlayerMovement>();
@@ -59,6 +67,12 @@ public class AlchemyInteraction : MonoBehaviour
         if (Keyboard.current == null)
             return;
 
+        if (puzzleManager != null && puzzleManager.Solved)
+        {
+            lookingAtStation = false;
+            return;
+        }
+
         if (cam == null)
             cam = Camera.main;
 
@@ -73,26 +87,7 @@ public class AlchemyInteraction : MonoBehaviour
 
     void HandleLookAround()
     {
-        Mouse mouse = Mouse.current;
-
-        if (mouse == null)
-            return;
-
-        if (mouse.rightButton.wasPressedThisFrame)
-        {
-            lookingAround = true;
-
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-
-        if (mouse.rightButton.wasReleasedThisFrame)
-        {
-            lookingAround = false;
-
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        LookAroundInput.Update(ref lookingAround);
     }
 
     void HandleBottleClick()
@@ -141,7 +136,7 @@ public class AlchemyInteraction : MonoBehaviour
 
     public void EnterInteraction()
     {
-        if (IsInteracting)
+        if (IsInteracting || (puzzleManager != null && puzzleManager.Solved))
             return;
 
         IsInteracting = true;
@@ -160,6 +155,9 @@ public class AlchemyInteraction : MonoBehaviour
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        if (cameraFocus != null)
+            cameraFocus.Focus();
     }
 
     public void ExitInteraction()
@@ -176,6 +174,9 @@ public class AlchemyInteraction : MonoBehaviour
 
         if (puzzleManager != null)
             puzzleManager.EndInteraction();
+
+        if (cameraFocus != null)
+            cameraFocus.Unfocus();
 
         if (playerMovement != null)
             playerMovement.MovementLocked = false;
@@ -231,15 +232,23 @@ public class AlchemyInteraction : MonoBehaviour
 
         if (Time.time < successMessageUntil)
         {
-            GUI.Label(
+            GUIStyle successStyle = new GUIStyle(style)
+            {
+                fontSize = 30,
+                fontStyle = FontStyle.Bold
+            };
+
+            successStyle.normal.textColor = new Color(1f, 0.82f, 0.3f);
+
+            HoverPromptGUI.Draw(
                 new Rect(
                     0,
                     Screen.height / 2f + 60,
                     Screen.width,
                     35
                 ),
-                "Mixture complete!",
-                style
+                "Mixture Complete!",
+                successStyle
             );
 
             return;
@@ -247,7 +256,15 @@ public class AlchemyInteraction : MonoBehaviour
 
         if (Time.time < failureMessageUntil)
         {
-            GUI.Label(
+            GUIStyle failureStyle = new GUIStyle(style)
+            {
+                fontSize = 20,
+                fontStyle = FontStyle.Bold
+            };
+
+            failureStyle.normal.textColor = new Color(1f, 0.45f, 0.4f);
+
+            HoverPromptGUI.Draw(
                 new Rect(
                     0,
                     Screen.height / 2f + 60,
@@ -255,7 +272,7 @@ public class AlchemyInteraction : MonoBehaviour
                     35
                 ),
                 "The mixture fails. Try again.",
-                style
+                failureStyle
             );
         }
 
@@ -268,14 +285,14 @@ public class AlchemyInteraction : MonoBehaviour
                     Screen.width,
                     30
                 ),
-                "Left click bottles     Hold Right Mouse to look     E to exit",
+                "Left click bottles     " + LookAroundInput.PromptText + "     E to exit",
                 style
             );
         }
         else if (lookingAtStation &&
                  (puzzleManager == null || !puzzleManager.Solved))
         {
-            GUI.Label(
+            HoverPromptGUI.Draw(
                 new Rect(
                     0,
                     Screen.height / 2f + 30,
